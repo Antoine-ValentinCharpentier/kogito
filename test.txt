@@ -1,0 +1,75 @@
+
+#!/bin/bash
+
+# Variables\NAMESPACE="kogito-namespace"
+KOGITO_CLI_URL="https://github.com/kiegroup/kogito-cloud-operator/releases/latest/download/kogito"
+OC_BINARY=$(which oc)
+
+# Vérifier si oc est installé
+if [ -z "$OC_BINARY" ]; then
+    echo "oc CLI n'est pas installé. Veuillez l'installer et vous connecter à OpenShift."
+    exit 1
+fi
+
+# Créer le namespace
+oc new-project $NAMESPACE || oc project $NAMESPACE
+
+# Installer Kogito CLI
+curl -L $KOGITO_CLI_URL -o /usr/local/bin/kogito
+chmod +x /usr/local/bin/kogito
+
+echo "Installation de Kogito CLI terminée."
+
+# Déploiement de Kogito Operator
+kogito install operator
+
+# Déploiement d'Infinispan (nécessaire pour Data Index et Jobs Service)
+kogito install infinispan
+
+# Déploiement de Kafka (nécessaire pour event-driven Kogito services)
+kogito install kafka
+
+# Déploiement de Keycloak pour l'authentification
+kogito install keycloak
+
+# Déploiement de Data Index (centralisation des événements)
+kogito install data-index
+
+# Déploiement de Task Console (UI pour gérer les tâches humaines)
+kogito install task-console
+
+# Déploiement de Management Console (UI pour superviser les process)
+kogito install management-console
+
+# Déploiement de l'explicabilité (AI Trusty Service)
+kogito install trusty
+
+# Vérification des pods
+oc get pods -n $NAMESPACE
+
+echo "Déploiement de Kogito et ses composants terminé dans le namespace $NAMESPACE."
+
+=======================
+
+https://sgitario.github.io/kogito-security-in-services/
+
+=======================
+
+
+oc apply -n "${NAMESPACE}" -f "https://github.com/kiegroup/kogito-operator/releases/download/${VERSION}/kogito-operator.yaml"
+
+kogito install infra kogito-infinispan-infra --kind Infinispan --apiVersion infinispan.org/v1 --resource-name kogito-infinispan
+
+kogito install infra kogito-kafka-infra --kind Kafka --apiVersion kafka.strimzi.io/v1beta2 --resource-name kogito-kafka
+
+kogito install data-index --infra kogito-infinispan-infra --infra kogito-kafka-infra
+
+kogito install jobs-service --infra kogito-infinispan-infra --infra kogito-kafka-infra
+
+kogito install mgmt-console
+
+kogito install trusty --infra kogito-infinispan-infra --infra kogito-kafka-infra
+
+kogito install explainability --infra kogito-kafka-infra
+
+ogito install task-console
